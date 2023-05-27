@@ -22,7 +22,7 @@ USER root
 RUN apt update && apt install -y git
 
 RUN cd /tmp && git clone https://github.com/edenhill/librdkafka.git && \
-    cd librdkafka && git checkout tags/v1.9.0 && \
+    cd librdkafka && git checkout tags/v2.1.1 && \
     ./configure && make && make install && \
     cd ../ && rm -rf librdkafka
 
@@ -36,13 +36,13 @@ USER root
 # Install maven packages
 COPY nop.py /root/nop.py
 
-ENV DELTA_LAKE_VERSION 2.1.1
+ENV DELTA_LAKE_VERSION 2.4.0
 ENV SCALA_VERSION 2.12
-ENV SPARK_BIGQUERY 0.27.1
+ENV SPARK_BIGQUERY 0.30.0
 
 # Use org.apache.hadoop:hadoop-cloud:${HADOOP_VERSION} with others cloud providers
 RUN spark-submit --packages \
-    org.apache.hadoop:hadoop-aws:${HADOOP_VERSION},org.apache.spark:spark-sql-kafka-0-10_${SCALA_VERSION}:${SPARK_VERSION},io.delta:delta-core_${SCALA_VERSION}:${DELTA_LAKE_VERSION},com.google.cloud.spark:spark-bigquery_${SCALA_VERSION}:${SPARK_BIGQUERY},org.apache.spark:spark-avro_${SCALA_VERSION}:${SPARK_VERSION},com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.9 \
+    org.apache.hadoop:hadoop-aws:${HADOOP_VERSION},org.apache.spark:spark-sql-kafka-0-10_${SCALA_VERSION}:${SPARK_VERSION},io.delta:delta-core_${SCALA_VERSION}:${DELTA_LAKE_VERSION},com.google.cloud.spark:spark-bigquery_${SCALA_VERSION}:${SPARK_BIGQUERY},org.apache.spark:spark-avro_${SCALA_VERSION}:${SPARK_VERSION},org.apache.spark:spark-protobuf_${SCALA_VERSION}:${SPARK_VERSION},com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.14 \
     /root/nop.py && \
     mv /root/.ivy2/jars/* $SPARK_HOME/jars/ && \
     rm -rf /root/.ivy2
@@ -54,8 +54,8 @@ RUN pip install delta-spark==${DELTA_LAKE_VERSION} --no-dependencies
 
 # Setup for the Prometheus JMX exporter.
 # Add the Prometheus JMX exporter Java agent jar for exposing metrics sent to the JmxSink to Prometheus.
-ADD https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.11.0/jmx_prometheus_javaagent-0.11.0.jar /prometheus/
-RUN chmod 644 /prometheus/jmx_prometheus_javaagent-0.11.0.jar
+ADD https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.18.0/jmx_prometheus_javaagent-0.18.0.jar /prometheus/
+RUN chmod 644 /prometheus/jmx_prometheus_javaagent-0.18.0.jar
 
 USER ${spark_uid}
 

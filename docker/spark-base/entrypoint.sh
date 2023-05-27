@@ -106,13 +106,5 @@ esac
 # ImportError: librdkafka.so.1: cannot open shared object file: No such file or directory
 ldconfig
 
-# Join custom and fixed configurations
-if ! [ -z ${SPARK_CONF_DIR+x} ]; then
-  # Copy spark-defaults.conf
-  mkdir -pv $SPARK_CONF_DIR/conf
-  echo "\n" >> $SPARK_CONF_DIR/conf/spark-defaults.conf
-  cat $SPARK_HOME/conf/spark-defaults.conf >> $SPARK_CONF_DIR/conf/spark-defaults.conf
-fi
-
 # Execute the container CMD under tini for better hygiene
 exec /usr/bin/tini -s -- "${CMD[@]}"
