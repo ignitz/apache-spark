@@ -43,7 +43,7 @@ RUN set -ex && \
   rm -rf /root/.cache && rm -rf /var/cache/apt/*
 
 # SPARK
-ENV SPARK_VERSION 3.4.0
+ENV SPARK_VERSION 3.5.0
 ENV HADOOP_VERSION 3.3.4
 ENV SPARK_PACKAGE spark-${SPARK_VERSION}-bin-hadoop3
 ENV SPARK_HOME /opt/spark
@@ -57,15 +57,12 @@ RUN curl -sL --retry 3 \
   mv /opt/${SPARK_PACKAGE}/ ${SPARK_HOME} && \
   chown -R root:root $SPARK_HOME
 
-COPY entrypoint.sh /opt/
 COPY decom.sh /opt/
 
 WORKDIR $SPARK_HOME/work-dir
 RUN chmod g+w $SPARK_HOME/work-dir
 RUN chmod a+x /opt/decom.sh
 RUN mkdir -pv $SPARK_HOME/.ivy2 && chown ${spark_uid}:${spark_uid} $SPARK_HOME/.ivy2
-
-ENTRYPOINT [ "/opt/entrypoint.sh" ]
 
 # Specify the User that the actual main process will run as
 USER ${spark_uid}
