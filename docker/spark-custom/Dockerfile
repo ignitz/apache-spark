@@ -14,12 +14,11 @@
 # limitations under the License.
 #
 
-# ARG SPARK_IMAGE=gcr.io/spark-operator/spark-py:v3.1.1-hadoop3
 ARG SPARK_IMAGE
 FROM ${SPARK_IMAGE}
 USER root
 
-RUN apt update && apt install -y git
+RUN apt update && apt install -y git build-essential
 
 RUN cd /tmp && git clone https://github.com/edenhill/librdkafka.git && \
     cd librdkafka && git checkout tags/v2.3.0 && \
@@ -31,22 +30,37 @@ RUN cd /tmp && git clone https://github.com/edenhill/librdkafka.git && \
 FROM ${SPARK_IMAGE}
 ARG spark_uid=185
 
+ENV PATH $PATH:${SPARK_HOME}/bin
+
 # Switch to user root so we can add additional jars and configuration files.
 USER root
 
 # Install maven packages
 COPY nop.py /root/nop.py
 
-ENV DELTA_LAKE_VERSION 3.0.0
+ENV DELTA_LAKE_VERSION 3.2.0
 ENV SCALA_VERSION 2.12
 ENV SPARK_BIGQUERY 0.30.0
+ENV AWS_MSK_IAM_AUTH_VERSION 2.0.0
+ENV GCS_CONNECTOR_VERSION 2.2.18
+
+RUN set -ex; \
+    apt-get update; \
+    apt-get install -y python3 python3-pip; \
+    rm -rf /var/lib/apt/lists/*
 
 # Use org.apache.hadoop:hadoop-cloud:${HADOOP_VERSION} with others cloud providers
 RUN spark-submit --packages \
-    org.apache.hadoop:hadoop-aws:${HADOOP_VERSION},software.amazon.msk:aws-msk-iam-auth:2.0.0,org.apache.spark:spark-sql-kafka-0-10_${SCALA_VERSION}:${SPARK_VERSION},io.delta:delta-spark_${SCALA_VERSION}:${DELTA_LAKE_VERSION},com.google.cloud.spark:spark-bigquery_${SCALA_VERSION}:${SPARK_BIGQUERY},org.apache.spark:spark-avro_${SCALA_VERSION}:${SPARK_VERSION},org.apache.spark:spark-protobuf_${SCALA_VERSION}:${SPARK_VERSION},com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.18 \
+    org.apache.hadoop:hadoop-aws:${HADOOP_VERSION},software.amazon.msk:aws-msk-iam-auth:${AWS_MSK_IAM_AUTH_VERSION},org.apache.spark:spark-sql-kafka-0-10_${SCALA_VERSION}:${SPARK_VERSION},io.delta:delta-spark_${SCALA_VERSION}:${DELTA_LAKE_VERSION},org.apache.spark:spark-avro_${SCALA_VERSION}:${SPARK_VERSION},org.apache.spark:spark-protobuf_${SCALA_VERSION}:${SPARK_VERSION} \
     /root/nop.py && \
     mv /root/.ivy2/jars/* $SPARK_HOME/jars/ && \
     rm -rf /root/.ivy2
+
+# RUN spark-submit --packages \
+#     com.google.cloud.spark:spark-bigquery_${SCALA_VERSION}:${SPARK_BIGQUERY},com.google.cloud.bigdataoss:gcs-connector:hadoop3-${GCS_CONNECTOR_VERSION} \
+#     /root/nop.py && \
+#     mv /root/.ivy2/jars/* $SPARK_HOME/jars/ && \
+#     rm -rf /root/.ivy2
 RUN chmod 644 $SPARK_HOME/jars/*
 
 # Install delta libraries
@@ -91,7 +105,8 @@ RUN pip install -r /tmp/requirements.txt && rm /tmp/requirements.txt
 # ENV PYSPARK_DRIVER_PYTHON_OPTS "notebook --properties-file /opt/spark/conf/spark.properties"
 # ENV PYSPARK_PYTHON python3
 
-COPY ./entrypoint.sh /opt/entrypoint.sh
-ENTRYPOINT [ "/opt/entrypoint.sh" ]
+COPY ./run.sh /opt/run.sh
+RUN chmod +x /opt/run.sh
+ENTRYPOINT [ "/opt/run.sh" ]
 
 USER ${spark_uid}

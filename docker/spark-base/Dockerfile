@@ -14,55 +14,68 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-ARG java_image_tag=11-jre-slim
-
-FROM openjdk:${java_image_tag}
+FROM eclipse-temurin:17-jre-jammy
 
 ARG spark_uid=185
 
-# Before building the docker image, first build and make a Spark distribution following
-# the instructions in https://spark.apache.org/docs/latest/building-spark.html.
-# If this docker file is being used in the context of building your images from a Spark
-# distribution, the docker build command should be invoked from the top level directory
-# of the Spark distribution. E.g.:
-# docker build -t spark:latest -f kubernetes/dockerfiles/spark/Dockerfile .
+RUN groupadd --system --gid=${spark_uid} spark && \
+    useradd --system --uid=${spark_uid} --gid=spark spark
 
-ARG DEBIAN_FRONTEND=noninteractive
+RUN set -ex; \
+    apt-get update; \
+    apt-get install -y gnupg2 wget bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools gosu libnss-wrapper; \
+    mkdir -p /opt/spark; \
+    mkdir /opt/spark/python; \
+    mkdir -p /opt/spark/examples; \
+    mkdir -p /opt/spark/work-dir; \
+    chmod g+w /opt/spark/work-dir; \
+    touch /opt/spark/RELEASE; \
+    chown -R spark:spark /opt/spark; \
+    echo "auth required pam_wheel.so use_uid" >> /etc/pam.d/su; \
+    rm -rf /var/lib/apt/lists/*
 
-RUN set -ex && \
-  sed -i 's/http:\/\/deb.\(.*\)/https:\/\/deb.\1/g' /etc/apt/sources.list && \
-  apt-get update && \
-  ln -s /lib /lib64 && \
-  apt install -y bash tini libc6 libpam-modules krb5-user libnss3 \
-  procps net-tools curl python3 python3-pip && \
-  pip3 install --upgrade pip setuptools && \
-  rm /bin/sh && \
-  ln -sv /bin/bash /bin/sh && \
-  echo "auth required pam_wheel.so use_uid" >> /etc/pam.d/su && \
-  chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \
-  rm -rf /root/.cache && rm -rf /var/cache/apt/*
-
-# SPARK
-ENV SPARK_VERSION 3.5.0
+# Install Apache Spark
+ENV SPARK_VERSION 3.5.1
 ENV HADOOP_VERSION 3.3.4
-ENV SPARK_PACKAGE spark-${SPARK_VERSION}-bin-hadoop3
+# https://downloads.apache.org/spark/KEYS
+ENV SPARK_TGZ_URL=https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz \
+    SPARK_TGZ_ASC_URL=https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz.asc \
+    GPG_KEY=FD3E84942E5E6106235A1D25BD356A9F8740E4FF
+
+RUN set -ex; \
+    export SPARK_TMP="$(mktemp -d)"; \
+    cd $SPARK_TMP; \
+    wget -nv -O spark.tgz "$SPARK_TGZ_URL"; \
+    wget -nv -O spark.tgz.asc "$SPARK_TGZ_ASC_URL"; \
+    export GNUPGHOME="$(mktemp -d)"; \
+    gpg --batch --keyserver hkps://keys.openpgp.org --recv-key "$GPG_KEY" || \
+    gpg --batch --keyserver hkps://keyserver.ubuntu.com --recv-keys "$GPG_KEY"; \
+    gpg --batch --verify spark.tgz.asc spark.tgz; \
+    gpgconf --kill all; \
+    rm -rf "$GNUPGHOME" spark.tgz.asc; \
+    \
+    tar -xf spark.tgz --strip-components=1; \
+    chown -R spark:spark .; \
+    mv jars /opt/spark/; \
+    mv bin /opt/spark/; \
+    mv sbin /opt/spark/; \
+    mv kubernetes/dockerfiles/spark/decom.sh /opt/; \
+    mv examples /opt/spark/; \
+    mv kubernetes/tests /opt/spark/; \
+    mv data /opt/spark/; \
+    mv python/pyspark /opt/spark/python/pyspark/; \
+    mv python/lib /opt/spark/python/lib/; \
+    mv R /opt/spark/; \
+    chmod a+x /opt/decom.sh; \
+    cd ..; \
+    rm -rf "$SPARK_TMP";
+
+COPY entrypoint.sh /opt/
+
 ENV SPARK_HOME /opt/spark
 
-ENV PATH $PATH:${SPARK_HOME}/bin
+WORKDIR /opt/spark/work-dir
 
-RUN curl -sL --retry 3 \
-  "https://dlcdn.apache.org/spark/spark-${SPARK_VERSION}/${SPARK_PACKAGE}.tgz" \
-  | gunzip \
-  | tar x -C /opt/ && \
-  mv /opt/${SPARK_PACKAGE}/ ${SPARK_HOME} && \
-  chown -R root:root $SPARK_HOME
+USER spark
 
-COPY decom.sh /opt/
-
-WORKDIR $SPARK_HOME/work-dir
-RUN chmod g+w $SPARK_HOME/work-dir
-RUN chmod a+x /opt/decom.sh
-RUN mkdir -pv $SPARK_HOME/.ivy2 && chown ${spark_uid}:${spark_uid} $SPARK_HOME/.ivy2
-
-# Specify the User that the actual main process will run as
-USER ${spark_uid}
+ENTRYPOINT [ "/opt/entrypoint.sh" ]

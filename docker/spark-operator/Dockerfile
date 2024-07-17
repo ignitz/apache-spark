@@ -1,6 +1,6 @@
 ARG SPARK_IMAGE=spark-custom:latest
 
-FROM golang:1.19.2-alpine as builder
+FROM golang:1.22-alpine as builder
 
 WORKDIR /workspace
 
@@ -15,18 +15,18 @@ RUN go mod download
 COPY main.go main.go
 COPY pkg/ pkg/
 
-# Build for Apple M1 or Intel/AMD
-RUN GOARCH=$([[ $(arch) = "linux/aarch64" ]] && echo "arm64" || echo "amd64")  && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -o /usr/bin/spark-operator main.go
+# Build
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on go build -a -o /usr/bin/spark-operator main.go
 
 FROM ${SPARK_IMAGE}
 USER root
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
 RUN apt-get update --allow-releaseinfo-change \
     && apt-get update \
-    && apt-get install -y openssl curl tini \
+    && apt-get install -y tini \
     && rm -rf /var/lib/apt/lists/*
-COPY hack/gencerts.sh /usr/bin/
 
 COPY entrypoint.sh /usr/bin/
+
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
