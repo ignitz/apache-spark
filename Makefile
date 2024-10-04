@@ -4,15 +4,15 @@ help: ## ❓ Show help menu
 
 .PHONY: build-spark
 build-spark: ## 🐳 Build Spark image
-	@docker build -f docker/spark-base/Dockerfile docker/spark-base -t ignitz/spark-base:latest
-	@docker build -f docker/spark-custom/Dockerfile docker/spark-custom -t ignitz/spark-custom:latest --build-arg SPARK_IMAGE=ignitz/spark-base:latest
+	@docker build --progress=plain -f docker/spark-base/Dockerfile docker/spark-base -t ignitz/spark-base:latest
+	@docker build --progress=plain -f docker/spark-custom/Dockerfile docker/spark-custom -t ignitz/spark-custom:latest --build-arg SPARK_IMAGE=ignitz/spark-base:latest
 
 .PHONY: build-operator
 build-operator: build-spark ## 🐳 Build Spark Operator image
-	@docker build -f docker/spark-operator/Dockerfile docker/spark-operator -t ignitz/spark-operator:latest --build-arg SPARK_IMAGE=ignitz/spark-custom:latest
+	@docker build --progress=plain -f docker/spark-operator/Dockerfile docker/spark-operator -t ignitz/spark-operator:latest --build-arg SPARK_IMAGE=ignitz/spark-custom:latest
 
 .PHONY: buildx
 buildx: ## 🐳 Build Multi-Arch and publish to registry
-	@docker buildx build -f docker/spark-base/Dockerfile docker/spark-base --platform linux/amd64,linux/arm64 -t ignitz/spark-base:latest --push
-	@docker buildx build -f docker/spark-custom/Dockerfile docker/spark-custom --platform linux/amd64,linux/arm64 -t ignitz/spark-custom:latest --build-arg SPARK_IMAGE=ignitz/spark-base:latest --push
-	@docker buildx build -f docker/spark-operator/Dockerfile docker/spark-operator --platform linux/amd64,linux/arm64 -t ignitz/spark-operator:latest  --build-arg SPARK_IMAGE=ignitz/spark-custom:latest --push
+	@docker buildx build --progress=plain -f docker/spark-base/Dockerfile docker/spark-base --platform linux/amd64,linux/arm64 -t ignitz/spark-base:latest --push
+	@docker buildx build --progress=plain -f docker/spark-custom/Dockerfile docker/spark-custom --platform linux/amd64,linux/arm64 -t ignitz/spark-custom:latest --build-arg SPARK_IMAGE=ignitz/spark-base:latest --push
+	@docker buildx build --progress=plain -f docker/spark-operator/Dockerfile docker/spark-operator --platform linux/amd64,linux/arm64 -t ignitz/spark-operator:latest  --build-arg SPARK_IMAGE=ignitz/spark-custom:latest --push

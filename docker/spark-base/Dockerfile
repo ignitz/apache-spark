@@ -43,7 +43,7 @@ RUN set -ex && \
   rm -rf /root/.cache && rm -rf /var/cache/apt/*
 
 # SPARK
-ENV SPARK_VERSION 3.5.0
+ENV SPARK_VERSION 3.5.3
 ENV HADOOP_VERSION 3.3.4
 ENV SPARK_PACKAGE spark-${SPARK_VERSION}-bin-hadoop3
 ENV SPARK_HOME /opt/spark
