@@ -37,16 +37,24 @@ USER root
 # Install maven packages
 COPY nop.py /root/nop.py
 
-ENV DELTA_LAKE_VERSION 3.0.0
+ENV DELTA_LAKE_VERSION 3.2.1
 ENV SCALA_VERSION 2.12
 ENV SPARK_BIGQUERY 0.30.0
+ENV AWS_BUNDLE_VERSION 1.12.638
+ENV AWS_MSK_IAM_AUTH_VERSION 2.0.3
 
 # Use org.apache.hadoop:hadoop-cloud:${HADOOP_VERSION} with others cloud providers
 RUN spark-submit --packages \
-    org.apache.hadoop:hadoop-aws:${HADOOP_VERSION},software.amazon.msk:aws-msk-iam-auth:2.0.0,org.apache.spark:spark-sql-kafka-0-10_${SCALA_VERSION}:${SPARK_VERSION},io.delta:delta-spark_${SCALA_VERSION}:${DELTA_LAKE_VERSION},com.google.cloud.spark:spark-bigquery_${SCALA_VERSION}:${SPARK_BIGQUERY},org.apache.spark:spark-avro_${SCALA_VERSION}:${SPARK_VERSION},org.apache.spark:spark-protobuf_${SCALA_VERSION}:${SPARK_VERSION},com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.18 \
+    org.apache.hadoop:hadoop-aws:${HADOOP_VERSION},org.apache.spark:spark-sql-kafka-0-10_${SCALA_VERSION}:${SPARK_VERSION},io.delta:delta-spark_${SCALA_VERSION}:${DELTA_LAKE_VERSION},com.google.cloud.spark:spark-bigquery_${SCALA_VERSION}:${SPARK_BIGQUERY},org.apache.spark:spark-avro_${SCALA_VERSION}:${SPARK_VERSION},org.apache.spark:spark-protobuf_${SCALA_VERSION}:${SPARK_VERSION},com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.18 \
     /root/nop.py && \
+    rm /root/.ivy2/jars/com.amazonaws_aws-java-sdk-bundle*.jar && \
+    mv /root/.ivy2/jars/* $SPARK_HOME/jars/ && \
+    spark-submit --packages com.amazonaws:aws-java-sdk-bundle:${AWS_BUNDLE_VERSION} /root/nop.py && \
     mv /root/.ivy2/jars/* $SPARK_HOME/jars/ && \
     rm -rf /root/.ivy2
+RUN curl --output $SPARK_HOME/jars/aws-msk-iam-auth-${AWS_MSK_IAM_AUTH_VERSION}-all.jar \
+    -L https://github.com/aws/aws-msk-iam-auth/releases/download/v${AWS_MSK_IAM_AUTH_VERSION}/aws-msk-iam-auth-${AWS_MSK_IAM_AUTH_VERSION}-all.jar || exit 1
+
 RUN chmod 644 $SPARK_HOME/jars/*
 
 # Install delta libraries
