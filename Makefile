@@ -4,8 +4,9 @@ help: ## ❓ Show help menu
 
 .PHONY: build-spark
 build-spark: ## 🐳 Build Spark image
-	@docker build --progress=plain -f docker/base/Dockerfile docker/base -t ignitz/apache-spark-base:latest
+	# @docker build --progress=plain -f docker/base/Dockerfile docker/base -t ignitz/apache-spark-base:latest
 	@docker build --progress=plain -f docker/custom/Dockerfile docker/custom -t ignitz/apache-spark-custom:latest --build-arg SPARK_IMAGE=ignitz/apache-spark-base:latest
+	@docker build --progress=plain -f docker/emr-on-eks/Dockerfile docker/emr-on-eks -t ignitz/emr-on-eks:latest
 
 .PHONY: build-operator
 build-operator: build-spark ## 🐳 Build Spark Operator image
