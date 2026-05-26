@@ -1,4 +1,0 @@
-# Base Python requirements to insert in Docker image of Pyspark
-requests
-pydantic
-confluent-kafka[avro,json,protobuf]>=2.3.0
