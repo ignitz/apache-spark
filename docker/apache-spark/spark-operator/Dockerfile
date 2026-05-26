@@ -1,32 +1,44 @@
-ARG SPARK_IMAGE=spark-custom:latest
+ARG SPARK_IMAGE
 
-FROM golang:1.19.2-alpine as builder
+FROM golang:1.24.10 AS builder
 
 WORKDIR /workspace
 
-# Copy the Go Modules manifests
-COPY go.mod go.mod
-COPY go.sum go.sum
-# Cache deps before building and copying source so that we don't need to re-download as much
-# and so that source changes don't invalidate our downloaded layer
-RUN go mod download
+RUN git config --global url."https://github.com/".insteadOf "git@github.com:" && \
+    git clone --depth 1 --branch v2.5.0 git@github.com:kubeflow/spark-operator.git .
 
-# Copy the go source code
-COPY main.go main.go
-COPY pkg/ pkg/
+RUN --mount=type=cache,target=/go/pkg/mod/ \
+    go mod download
 
-# Build for Apple M1 or Intel/AMD
-RUN GOARCH=$([[ $(arch) = "linux/aarch64" ]] && echo "arm64" || echo "amd64")  && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -o /usr/bin/spark-operator main.go
+
+ENV GOCACHE=/root/.cache/go-build
+
+ARG TARGETARCH
+
+RUN --mount=type=cache,target=/go/pkg/mod/ \
+    --mount=type=cache,target="/root/.cache/go-build" \
+    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on make build-operator
 
 FROM ${SPARK_IMAGE}
-USER root
-COPY --from=builder /usr/bin/spark-operator /usr/bin/
-RUN apt-get update --allow-releaseinfo-change \
-    && apt-get update \
-    && apt-get install -y openssl curl tini \
-    && rm -rf /var/lib/apt/lists/*
-COPY hack/gencerts.sh /usr/bin/
 
-COPY entrypoint.sh /usr/bin/
+ARG SPARK_UID=185
+
+ARG SPARK_GID=185
+
+USER root
+
+RUN apt-get update \
+    && apt-get install -y tini \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /etc/k8s-webhook-server/serving-certs /home/spark && \
+    chmod -R g+rw /etc/k8s-webhook-server/serving-certs && \
+    chown -R spark /etc/k8s-webhook-server/serving-certs /home/spark
+
+USER ${SPARK_UID}:${SPARK_GID}
+
+COPY --from=builder /workspace/bin/spark-operator /usr/bin/spark-operator
+
+COPY --from=builder /workspace/entrypoint.sh /usr/bin/
+
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]

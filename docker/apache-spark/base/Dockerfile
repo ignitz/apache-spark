@@ -14,9 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-ARG java_image_tag=11-jre-slim
+# ARG java_image_tag=11-jre-slim
 
-FROM openjdk:${java_image_tag}
+FROM ubuntu:26.04
+
+# Install Python
+COPY --from=python:3.11-slim /usr/local /usr/local
 
 ARG spark_uid=185
 
@@ -29,40 +32,46 @@ ARG spark_uid=185
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+# # SPARK
+ENV SPARK_VERSION=4.1.2
+ENV HADOOP_VERSION=3.4.2
+ENV SPARK_PACKAGE=spark-${SPARK_VERSION}-bin-hadoop3
+ENV SPARK_HOME=/opt/spark
+ENV PATH=$PATH:${SPARK_HOME}/bin
+
 RUN set -ex && \
-  sed -i 's/http:\/\/deb.\(.*\)/https:\/\/deb.\1/g' /etc/apt/sources.list && \
-  apt-get update && \
-  ln -s /lib /lib64 && \
-  apt install -y bash tini libc6 libpam-modules krb5-user libnss3 \
-  procps net-tools curl python3 python3-pip && \
-  pip3 install --upgrade pip setuptools && \
-  rm /bin/sh && \
-  ln -sv /bin/bash /bin/sh && \
-  echo "auth required pam_wheel.so use_uid" >> /etc/pam.d/su && \
-  chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \
-  rm -rf /root/.cache && rm -rf /var/cache/apt/*
-
-# SPARK
-ENV SPARK_VERSION 3.5.3
-ENV HADOOP_VERSION 3.3.4
-ENV SPARK_PACKAGE spark-${SPARK_VERSION}-bin-hadoop3
-ENV SPARK_HOME /opt/spark
-
-ENV PATH $PATH:${SPARK_HOME}/bin
+    apt-get update && \
+    ln -s /lib /lib64 && \
+    apt install -y curl bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev \
+    openjdk-21-jdk \
+    && \
+    rm /bin/sh && \
+    ln -sv /bin/bash /bin/sh && \
+    echo "auth required pam_wheel.so use_uid" >> /etc/pam.d/su && \
+    chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \
+    rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*
 
 RUN curl -sL --retry 3 \
   "https://dlcdn.apache.org/spark/spark-${SPARK_VERSION}/${SPARK_PACKAGE}.tgz" \
   | gunzip \
   | tar x -C /opt/ && \
-  mv /opt/${SPARK_PACKAGE}/ ${SPARK_HOME} && \
+  mv /opt/${SPARK_PACKAGE} ${SPARK_HOME} && \
   chown -R root:root $SPARK_HOME
 
-COPY decom.sh /opt/
-
+RUN mkdir -pv $SPARK_HOME/work-dir
 WORKDIR $SPARK_HOME/work-dir
 RUN chmod g+w $SPARK_HOME/work-dir
+COPY decom.sh /opt/decom.sh
 RUN chmod a+x /opt/decom.sh
-RUN mkdir -pv $SPARK_HOME/.ivy2 && chown ${spark_uid}:${spark_uid} $SPARK_HOME/.ivy2
 
-# Specify the User that the actual main process will run as
+COPY entrypoint.sh /opt/entrypoint.sh
+RUN chmod a+x /opt/entrypoint.sh
+
+RUN useradd -d /home/spark -ms /bin/bash -u ${spark_uid} -g root spark && \
+    mkdir -p /home/spark && \
+    chown -R spark:root /home/spark && \
+    chmod -R g+w /home/spark
+
 USER ${spark_uid}
+
+ENTRYPOINT [ "/opt/entrypoint.sh" ]

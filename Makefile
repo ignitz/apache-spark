@@ -4,26 +4,16 @@ help: ## ❓ Show help menu
 
 .PHONY: build-spark
 build-spark: ## 🐳 Build Spark image
-	# @docker build --progress=plain -f docker/base/Dockerfile docker/base -t ignitz/apache-spark-base:latest
-	@docker build --progress=plain -f docker/custom/Dockerfile docker/custom -t ignitz/apache-spark-custom:latest --build-arg SPARK_IMAGE=ignitz/apache-spark-base:latest
-	@docker build --progress=plain -f docker/emr-on-eks/Dockerfile docker/emr-on-eks -t ignitz/emr-on-eks:latest
+	@docker build --progress=plain -f docker/apache-spark/base/Dockerfile docker/apache-spark/base -t ignitz/apache-spark-base:latest
+	@docker build --progress=plain -f docker/apache-spark/custom/Dockerfile docker/apache-spark/custom -t ignitz/apache-spark-custom:latest --build-arg SPARK_IMAGE=ignitz/apache-spark-base:latest
 
 .PHONY: build-operator
 build-operator: build-spark ## 🐳 Build Spark Operator image
-	@docker build --progress=plain -f docker/spark-operator/Dockerfile docker/spark-operator -t ignitz/apache-spark-operator:latest --build-arg SPARK_IMAGE=ignitz/apache-spark-custom:latest
+	@docker build --progress=plain -f docker/apache-spark/spark-operator/Dockerfile docker/apache-spark/spark-operator -t ignitz/apache-spark-operator:latest --build-arg SPARK_IMAGE=ignitz/apache-spark-custom:latest
 
-.PHONY: build-emr
-build-emr: ## 🐳 Build EMR on EKS image
-	@docker build --progress=plain -f docker/emr-on-eks/spark-image/Dockerfile docker/emr-on-eks/spark-image -t ignitz/emr-on-eks:latest
-
-.PHONY: build-emr-operator
-build-emr-operator: build-emr ## 🐳 Build EMR on EKS Operator image
-	@docker build --progress=plain -f docker/emr-on-eks/spark-operator/Dockerfile docker/emr-on-eks/spark-operator -t ignitz/emr-on-eks-operator:latest --build-arg SPARK_IMAGE=ignitz/emr-on-eks:latest
 
 .PHONY: buildx
 buildx: ## 🐳 Build Multi-Arch and publish to registry
-	@docker buildx build --progress=plain -f docker/base/Dockerfile docker/base --platform linux/amd64,linux/arm64 -t ignitz/apache-spark-base:latest --push
-	@docker buildx build --progress=plain -f docker/custom/Dockerfile docker/custom --platform linux/amd64,linux/arm64 -t ignitz/apache-spark-custom:latest --build-arg SPARK_IMAGE=ignitz/apache-spark-base:latest --push
-	@docker buildx build --progress=plain -f docker/spark-operator/Dockerfile docker/spark-operator --platform linux/amd64,linux/arm64 -t ignitz/apache-spark-operator:latest  --build-arg SPARK_IMAGE=ignitz/apache-spark-custom:latest --push
-	@docker buildx build --progress=plain -f docker/emr-on-eks/spark-image/Dockerfile docker/emr-on-eks/spark-image/ --platform linux/amd64,linux/arm64 -t ignitz/emr-on-eks:latest --push
-	@docker buildx build --progress=plain -f docker/emr-on-eks/spark-operator/Dockerfile docker/emr-on-eks/spark-operator/ --platform linux/amd64,linux/arm64 -t ignitz/emr-spark-operator:latest --build-arg SPARK_IMAGE=ignitz/emr-on-eks:latest --push
+	@docker buildx build --progress=plain -f docker/apache-spark/base/Dockerfile docker/apache-spark/base --platform linux/amd64,linux/arm64 -t ignitz/apache-spark-base:latest --push
+	@docker buildx build --progress=plain -f docker/apache-spark/custom/Dockerfile docker/apache-spark/custom --platform linux/amd64,linux/arm64 -t ignitz/apache-spark-custom:latest --build-arg SPARK_IMAGE=ignitz/apache-spark-base:latest --push
+	@docker buildx build --progress=plain -f docker/apache-spark/spark-operator/Dockerfile docker/apache-spark/spark-operator --platform linux/amd64,linux/arm64 -t ignitz/apache-spark-operator:latest  --build-arg SPARK_IMAGE=ignitz/apache-spark-custom:latest --push
