@@ -41,6 +41,8 @@ ENV SCALA_VERSION=2.13
 ENV HADOOP_VERSION=3.4.2
 ENV AWS_MSK_IAM_AUTH_VERSION=2.36.3
 ENV SCALA_VERSION=2.13
+ENV POSTGRES_JDBC_VERSION=42.7.4
+ENV MYSQL_JDBC_VERSION=9.1.0
 
 RUN spark-submit --packages \
     org.apache.hadoop:hadoop-aws:${HADOOP_VERSION},org.apache.spark:spark-sql-kafka-0-10_${SCALA_VERSION}:${SPARK_VERSION},io.delta:delta-spark_${SCALA_VERSION}:${DELTA_LAKE_VERSION},org.apache.spark:spark-avro_${SCALA_VERSION}:${SPARK_VERSION},org.apache.spark:spark-protobuf_${SCALA_VERSION}:${SPARK_VERSION} \
@@ -57,6 +59,12 @@ RUN spark-submit --packages \
 #     rm -rf /root/.ivy2
 RUN curl --output $SPARK_HOME/jars/aws-msk-iam-auth-${AWS_MSK_IAM_AUTH_VERSION}-all.jar \
     -L https://github.com/aws/aws-msk-iam-auth/releases/download/v${AWS_MSK_IAM_AUTH_VERSION}/aws-msk-iam-auth-${AWS_MSK_IAM_AUTH_VERSION}-all.jar || exit 1
+
+# PostgreSQL and MySQL JDBC drivers
+RUN curl --output $SPARK_HOME/jars/postgresql-${POSTGRES_JDBC_VERSION}.jar \
+    -L https://repo1.maven.org/maven2/org/postgresql/postgresql/${POSTGRES_JDBC_VERSION}/postgresql-${POSTGRES_JDBC_VERSION}.jar || exit 1
+RUN curl --output $SPARK_HOME/jars/mysql-connector-j-${MYSQL_JDBC_VERSION}.jar \
+    -L https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/${MYSQL_JDBC_VERSION}/mysql-connector-j-${MYSQL_JDBC_VERSION}.jar || exit 1
 
 RUN chmod 644 $SPARK_HOME/jars/*
 
