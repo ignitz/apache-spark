@@ -93,6 +93,15 @@ COPY --from=0 /usr/local/share/doc/librdkafka /usr/local/share/doc/librdkafka
 COPY ./requirements.txt /tmp/
 RUN pip3 install -r /tmp/requirements.txt --break-system-packages && rm /tmp/requirements.txt
 
+# Spark Connect client deps (used by marimo, which imports the bundled pyspark
+# from $SPARK_HOME/python rather than a pip-installed one). zstandard is new in
+# the 4.1 client; protobuf already ships in the image.
+RUN pip3 install --no-cache-dir --break-system-packages \
+    pandas pyarrow grpcio grpcio-status numpy "zstandard>=0.25.0"
+
+# Point Python at the bundled pyspark so `import pyspark` works for the Connect client.
+ENV PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-0.10.9.9-src.zip
+
 # Support Jupyter Notebook
 # RUN pip install jupyter
 # ENV PYSPARK_DRIVER_PYTHON "jupyter"
