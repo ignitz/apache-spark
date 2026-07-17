@@ -43,9 +43,10 @@ ENV AWS_MSK_IAM_AUTH_VERSION=2.36.3
 ENV SCALA_VERSION=2.13
 ENV POSTGRES_JDBC_VERSION=42.7.4
 ENV MYSQL_JDBC_VERSION=9.1.0
+ENV UNITY_CATALOG_VERSION=0.4.1
 
 RUN spark-submit --packages \
-    org.apache.hadoop:hadoop-aws:${HADOOP_VERSION},org.apache.spark:spark-sql-kafka-0-10_${SCALA_VERSION}:${SPARK_VERSION},io.delta:delta-spark_${SCALA_VERSION}:${DELTA_LAKE_VERSION},org.apache.spark:spark-avro_${SCALA_VERSION}:${SPARK_VERSION},org.apache.spark:spark-protobuf_${SCALA_VERSION}:${SPARK_VERSION} \
+    org.apache.hadoop:hadoop-aws:${HADOOP_VERSION},org.apache.spark:spark-sql-kafka-0-10_${SCALA_VERSION}:${SPARK_VERSION},io.delta:delta-spark_${SCALA_VERSION}:${DELTA_LAKE_VERSION},org.apache.spark:spark-avro_${SCALA_VERSION}:${SPARK_VERSION},org.apache.spark:spark-protobuf_${SCALA_VERSION}:${SPARK_VERSION},io.unitycatalog:unitycatalog-spark_${SCALA_VERSION}:${UNITY_CATALOG_VERSION} \
     /root/nop.py && \
     mv /root/.ivy2.5.2/jars/* $SPARK_HOME/jars/ && \
     rm -rf /root/.ivy2.5.2
@@ -98,9 +99,16 @@ RUN pip3 install -r /tmp/requirements.txt --break-system-packages && rm /tmp/req
 # the 4.1 client; protobuf already ships in the image.
 RUN pip3 install --no-cache-dir --break-system-packages \
     pandas pyarrow grpcio grpcio-status numpy "zstandard>=0.25.0"
+RUN pip3 install --no-cache-dir --break-system-packages \
+    "jupyterhub>=5.5.0,<6.0.0"
 
 # Point Python at the bundled pyspark so `import pyspark` works for the Connect client.
 ENV PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-0.10.9.9-src.zip
+
+# uv: required by the marimo-operator (it runs `marimo edit --sandbox`, which
+# provisions the notebook env with uv). marimo resolves uv at /usr/bin/uv.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/bin/uv
+RUN ln -sf /usr/bin/uv /usr/local/bin/uv && /usr/bin/uv --version
 
 # Support Jupyter Notebook
 # RUN pip install jupyter
