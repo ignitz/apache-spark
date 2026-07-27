@@ -36,28 +36,29 @@ USER root
 # Install maven packages
 COPY nop.py /root/nop.py
 
-ENV DELTA_LAKE_VERSION=4.2.0
+ENV DELTA_LAKE_VERSION=4.3.0
 ENV SCALA_VERSION=2.13
 ENV HADOOP_VERSION=3.4.2
-ENV AWS_MSK_IAM_AUTH_VERSION=2.36.3
-ENV SCALA_VERSION=2.13
+ENV DELTA_SPARK_SUFFIX=4.1
+ENV AWS_MSK_IAM_AUTH_VERSION=2.3.7
 ENV POSTGRES_JDBC_VERSION=42.7.4
 ENV MYSQL_JDBC_VERSION=9.1.0
-ENV UNITY_CATALOG_VERSION=0.4.1
+ENV UNITY_CATALOG_VERSION=0.5.1
+ENV UNITY_CATALOG_SPARK_SUFFIX=4.1
 
 RUN spark-submit --packages \
-    org.apache.hadoop:hadoop-aws:${HADOOP_VERSION},org.apache.spark:spark-sql-kafka-0-10_${SCALA_VERSION}:${SPARK_VERSION},io.delta:delta-spark_${SCALA_VERSION}:${DELTA_LAKE_VERSION},org.apache.spark:spark-avro_${SCALA_VERSION}:${SPARK_VERSION},org.apache.spark:spark-protobuf_${SCALA_VERSION}:${SPARK_VERSION},io.unitycatalog:unitycatalog-spark_${SCALA_VERSION}:${UNITY_CATALOG_VERSION} \
+    org.apache.hadoop:hadoop-aws:${HADOOP_VERSION},org.apache.spark:spark-sql-kafka-0-10_${SCALA_VERSION}:${SPARK_VERSION},io.delta:delta-spark_${DELTA_SPARK_SUFFIX}_${SCALA_VERSION}:${DELTA_LAKE_VERSION},org.apache.spark:spark-avro_${SCALA_VERSION}:${SPARK_VERSION},org.apache.spark:spark-protobuf_${SCALA_VERSION}:${SPARK_VERSION},io.unitycatalog:unitycatalog-spark_${UNITY_CATALOG_SPARK_SUFFIX}_${SCALA_VERSION}:${UNITY_CATALOG_VERSION} \
     /root/nop.py && \
     mv /root/.ivy2.5.2/jars/* $SPARK_HOME/jars/ && \
     rm -rf /root/.ivy2.5.2
-# RUN spark-submit --packages \
-#     org.apache.hadoop:hadoop-aws:${HADOOP_VERSION},org.apache.spark:spark-sql-kafka-0-10_${SCALA_VERSION}:${SPARK_VERSION},io.delta:delta-spark_${SCALA_VERSION}:${DELTA_LAKE_VERSION},org.apache.spark:spark-avro_${SCALA_VERSION}:${SPARK_VERSION},org.apache.spark:spark-protobuf_${SCALA_VERSION}:${SPARK_VERSION} \
-#     /root/nop.py && \
-#     rm /root/.ivy2/jars/com.amazonaws_aws-java-sdk-bundle*.jar && \
-#     mv /root/.ivy2/jars/* $SPARK_HOME/jars/ && \
-#     spark-submit --packages com.amazonaws:aws-java-sdk-bundle:${AWS_BUNDLE_VERSION} /root/nop.py && \
-#     mv /root/.ivy2/jars/* $SPARK_HOME/jars/ && \
-#     rm -rf /root/.ivy2
+
+# Patched unitycatalog-client 0.5.1: backport of unitycatalog#1663 (case-insensitive
+# auth-config lookups in TokenProvider.create). Fixes the delta-spark REST 'oauth.clientId
+# missing' bug so OAuth works for both read (credential vending) and write (coordinated
+# commits) without deltaRestApi.enabled=false. Only the
+# recompiled TokenProvider.class differs from the Maven jar; overwrites the Ivy-pulled one.
+COPY patched-jars/io.unitycatalog_unitycatalog-client-${UNITY_CATALOG_VERSION}.jar $SPARK_HOME/jars/
+
 RUN curl --output $SPARK_HOME/jars/aws-msk-iam-auth-${AWS_MSK_IAM_AUTH_VERSION}-all.jar \
     -L https://github.com/aws/aws-msk-iam-auth/releases/download/v${AWS_MSK_IAM_AUTH_VERSION}/aws-msk-iam-auth-${AWS_MSK_IAM_AUTH_VERSION}-all.jar || exit 1
 
