@@ -1,11 +1,13 @@
 ARG SPARK_IMAGE
 
-FROM golang:1.24.10 AS builder
+# Build stage runs on the build host and cross-compiles via GOARCH=${TARGETARCH}:
+# the Go runtime crashes under QEMU emulation (fatal error: lfstack.push) on multi-arch builds.
+FROM --platform=$BUILDPLATFORM golang:1.24.10 AS builder
 
 WORKDIR /workspace
 
 RUN git config --global url."https://github.com/".insteadOf "git@github.com:" && \
-    git clone --depth 1 --branch v2.5.0 git@github.com:kubeflow/spark-operator.git .
+    git clone --depth 1 --branch v2.5.2 git@github.com:kubeflow/spark-operator.git .
 
 RUN --mount=type=cache,target=/go/pkg/mod/ \
     go mod download
