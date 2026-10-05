@@ -1,6 +1,6 @@
 # Apache Spark - Custom Image
 
-> Version 4.1.2
+> Version 4.1.3 (Delta Lake 4.4.0, Unity Catalog 0.6.0, Spark Operator 2.5.2)
 
 My custom image to use Spark in Kubernetes and S3 and Delta Lake with Unity Catalog support.
 
